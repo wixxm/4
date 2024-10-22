@@ -68,7 +68,7 @@ jobs:
         if git status --porcelain | grep .; then
           git add .
           git commit -am "update $(date '+%Y-%m-%d %H:%M:%S')"
-          git push --quiet "https://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@github.com/wixxm/4.git" HEAD:${{matrix.target}}
+          git remote set-url origin https://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@github.com/wixxm/4.git
         else
           echo "nothing to commit"
           exit 0
