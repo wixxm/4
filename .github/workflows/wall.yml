@@ -7,26 +7,23 @@ on:
       - '.github/diy/main.sh'
   schedule:
     - cron: 0 */4 * * *
-  repository_dispatch:
   workflow_dispatch:
     inputs:
-      packages:
-        description: 'packages'
+      ssh:
+        description: 'ssh'
         required: false
-        default: 'false'	
+        default: 'true'
+  watch:
+    types: started
+  repository_dispatch: 
+  
 permissions:
-  contents: write    
+   contents: write
 
 jobs:
-  build:
-    if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id
-    runs-on: ubuntu-latest
-
-    name: Update ${{matrix.target}}
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [main]
+  merge:
+    if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id || github.event.sender.id == '119362912'
+    runs-on: Ubuntu-22.04
 
     steps:
     - name: Checkout
@@ -34,11 +31,16 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Initialization environment
+    - uses: de-vri-es/setup-git-credentials@v2
+      with:
+        credentials: https://kiddin9:${{ secrets.TOKEN_KIDDIN9 }}@github.com/
+    
+    - name: Set git identity
       run : |
-        git config --global user.email "wixxm@users.noreply.github.com"
-        git config --global user.name "wixxm "
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
         sudo timedatectl set-timezone "Asia/Shanghai"
+
         
     - name: Clone packages
       run: |
@@ -54,33 +56,24 @@ jobs:
         bash /$GITHUB_WORKSPACE/.github/diy/create_acl_for_luci.sh -a
         bash /$GITHUB_WORKSPACE/.github/diy/Modify.sh
         
-    - name: Upload
-      env: 
-        ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+    - name: Apply
       run: |
-        if [ -e $GITHUB_WORKSPACE/LICENSE ]; then
-          cp $GITHUB_WORKSPACE/LICENSE $GITHUB_WORKSPACE/${{matrix.target}}
-        fi
-        if [ -e $GITHUB_WORKSPACE/README.md ]; then
-          cp $GITHUB_WORKSPACE/README.md $GITHUB_WORKSPACE/${{matrix.target}}
-        fi
-        cd $GITHUB_WORKSPACE/${{matrix.target}}
-        if git status --porcelain | grep .; then
-          git add .
-          git commit -am "update $(date '+%Y-%m-%d %H:%M:%S')"
-          git push --quiet https://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@github.com/wixxm/4.git
-        else
-          echo "nothing to commit"
-          exit 0
-        fi || exit 0       
-   
+        Emoji=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🍉" "💐" "🌴" "🚀" "🛸" "🗽" "⛅" "🌈" "🔥" "⛄" "🐶" "🏅" "🦄" "🐤")
+        git add .
+        git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
+        for pkg in $(git diff-tree --no-commit-id --name-only HEAD); do
+          if [ "$(grep "PKG_RELEASE" $pkg/Makefile)" ]; then
+            sed -i "s/PKG_RELEASE:=.*/PKG_RELEASE:=$(git rev-list --count main $pkg)/" $pkg/Makefile || true
+          fi
+        done
+        git reset --soft HEAD^
+        git add .
+        git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
+        git push -f
 
     - name: Delete workflow runs
       uses: Mattraks/delete-workflow-runs@main
+      continue-on-error: true
       with:
-        token: ${{ github.token }}
-        repository: ${{ github.repository }}
         retain_days: 1
-        keep_minimum_runs: 1
-
- 
+        keep_minimum_runs: 3   
