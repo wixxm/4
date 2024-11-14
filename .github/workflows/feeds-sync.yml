@@ -23,7 +23,7 @@ jobs:
       - name: Clone and sync with target repository
         run: |
           YOUR_USERNAME="wixxm"
-          YOUR_REPO="wikjxwrt-packages"
+          YOUR_REPO="4"
           TARGET_REPO="git@github.com:$YOUR_USERNAME/$YOUR_REPO"
           TARGET_DIR="/opt/github/$YOUR_REPO"
 
