@@ -1,12 +1,15 @@
-name: Feeds Sync
+name: Sync Repositories
 
 on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天定时同步，您可以调整此 cron 表达式的时间
+  workflow_dispatch:  # 允许手动触发
   push:
     branches:
-      - main  # 你可以替换为实际触发的分支名称
+      - main  # 只在推送到 main 分支时触发
 
 jobs:
-  sync-feeds:
+  sync:
     runs-on: ubuntu-latest
 
     steps:
@@ -14,11 +17,24 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Set up Git
-      run: |
-        git config --global user.name "${{ github.actor }}"
-        git config --global user.email "${{ secrets.GITHUB_EMAIL }}"
+      uses: actions/setup-git@v2
 
-    - name: Run feeds script
-      run: bash feeds.sh
+    - name: Sync luci-app-mosdns
+      run: |
+        git clone --single-branch --branch v5 https://github.com/sbwml/luci-app-mosdns.git temp-repo
+        cd temp-repo
+        git checkout v5
+        rsync -av --exclude='.git' mosdns/ /home/runner/work/4/4/mosdns/
+        rsync -av --exclude='.git' luci-app-mosdns/ /home/runner/work/4/4/luci-app-mosdns/
+        rm -rf temp-repo  # 清理临时文件夹
+
+    - name: Commit and push changes
+      run: |
+        cd /home/runner/work/4/4
+        git add .
+        git config --global user.name 'Your GitHub Username'
+        git config --global user.email 'Your GitHub Email'
+        git commit -m 'Sync mosdns and luci-app-mosdns from sbwml repo'
+        git push origin main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
